@@ -21,16 +21,23 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <arpa/inet.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
 static pid_t pid;
+static int child_died;
 
 uint16_t icmp_checksum(uint16_t *, int);
 void describe(unsigned char *, int, struct sockaddr_in *);
 void ping(struct in_addr *, int);
 void pong(int);
+
+void sigchld_handler(int sig)
+{
+    child_died = 1;
+}
 
 int main(int ac, char *av[]) {
     int n, raw;
@@ -63,6 +70,8 @@ int main(int ac, char *av[]) {
         exit(-1);
     }
 
+    signal(SIGCHLD, sigchld_handler);
+
     pid = fork();
     if (pid < 0) {
         perror("fork");
@@ -75,7 +84,7 @@ int main(int ac, char *av[]) {
         pong(raw);
     }
 
-    return 0;
+    return -1;
 }
 
 void ping(struct in_addr *hosts, int raw)
@@ -113,7 +122,7 @@ void ping(struct in_addr *hosts, int raw)
     /* Send one echo to every host every 10s, forever. */
 
     seq = 0;
-    while (1) {
+    while (!child_died) {
         int i = 0;
 
         icp->icmp_seq = htons(seq++);
