@@ -194,7 +194,22 @@ void describe(unsigned char *pkt, int len, struct sockaddr_in *from)
                time, ntohs(icp->icmp_seq));
     }
 
-    /* We should decode "destination unreachable" too. */
+    else if (icp->icmp_type == ICMP_UNREACH) {
+        struct ip *oldip = (struct ip *)&icp->icmp_data[0];
+        struct icmp *oldicp;
+        int ohl;
+
+        ohl = oldip->ip_hl << 2;
+        if (len < hl + 8 + ohl + ICMP_MINLEN)
+            return;
+
+        oldicp = (struct icmp *)(pkt+hl+8+ohl);
+        if (oldicp->icmp_type == ICMP_ECHO &&
+            oldicp->icmp_id == htons(pid & 0xFFFF))
+        {
+            printf("%s: unreachable\n", inet_ntoa(oldip->ip_dst));
+        }
+    }
 }
 
 uint16_t icmp_checksum(uint16_t *w, int len)
