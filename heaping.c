@@ -1,5 +1,6 @@
 /*
  * heaping -- Ping a list of addresses forever
+ * http://github.com/amenonsen/heaping
  *
  * Copyright 2011 Abhijit Menon-Sen <ams@toroid.org>
  *
