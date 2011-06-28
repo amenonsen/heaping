@@ -34,6 +34,7 @@ void pong(int);
 void ping(struct in_addr *, int);
 uint16_t icmp_checksum(uint16_t *, int);
 void describe(unsigned char *, int, struct sockaddr_in *);
+int ms_between(struct timeval *, struct timeval *);
 
 void sigchld_handler(int sig)
 {
@@ -132,10 +133,13 @@ void ping(struct in_addr *hosts, int raw)
     seq = 0;
     while (!child_died && !killed) {
         int i = 0;
+        struct timeval a, b;
 
         icp->icmp_seq = htons(seq);
         printf("meta: new cycle (seq=%d)\n", seq);
         seq++;
+
+        gettimeofday(&a, &tz);
 
         while (hosts[i].s_addr != INADDR_NONE) {
             int n;
@@ -152,6 +156,10 @@ void ping(struct in_addr *hosts, int raw)
 
             i++;
         }
+
+        gettimeofday(&b, &tz);
+
+        printf("meta: sent %d pings in %d ms\n", i, ms_between(&b, &a));
 
         sleep(10);
     }
@@ -194,7 +202,6 @@ void describe(unsigned char *pkt, int len, struct sockaddr_in *from)
     if (icp->icmp_type == ICMP_ECHOREPLY &&
         icp->icmp_id == htons(pid & 0xFFFF))
     {
-        int time;
         struct timezone tz;
         struct timeval tv;
         struct timeval *then =
@@ -202,17 +209,8 @@ void describe(unsigned char *pkt, int len, struct sockaddr_in *from)
 
         gettimeofday(&tv, &tz);
 
-        tv.tv_usec -= then->tv_usec;
-        if (tv.tv_usec < 0) {
-            tv.tv_sec--;
-            tv.tv_usec += 1000000;
-        }
-        tv.tv_sec -= then->tv_sec;
-
-        time = tv.tv_sec*1000+(tv.tv_usec/1000);
-
         printf("%s: %d ms (seq=%d)\n", inet_ntoa(from->sin_addr),
-               time, ntohs(icp->icmp_seq));
+               ms_between(&tv, then), ntohs(icp->icmp_seq));
     }
 
     else if (icp->icmp_type == ICMP_UNREACH) {
@@ -255,4 +253,19 @@ uint16_t icmp_checksum(uint16_t *w, int len)
     sum += (sum >> 16);
 
     return ~sum;
+}
+
+int ms_between(struct timeval *new, struct timeval *old)
+{
+    int sec = 0, usec = 0;
+
+    sec = new->tv_sec;
+    usec = new->tv_usec - old->tv_usec;
+    if (usec < 0) {
+        usec += 1000*1000;
+        sec--;
+    }
+    sec -= old->tv_sec;
+
+    return sec*1000+(usec/1000);
 }
