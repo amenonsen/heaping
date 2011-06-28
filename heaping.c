@@ -11,6 +11,7 @@
  */
 
 #define _BSD_SOURCE
+#define _POSIX_SOURCE
 
 #include <errno.h>
 #include <unistd.h>
@@ -28,6 +29,7 @@
 
 static pid_t pid;
 static int child_died;
+static int killed;
 
 uint16_t icmp_checksum(uint16_t *, int);
 void describe(unsigned char *, int, struct sockaddr_in *);
@@ -37,6 +39,11 @@ void pong(int);
 void sigchld_handler(int sig)
 {
     child_died = 1;
+}
+
+void kill_handler(int sig)
+{
+    killed = 1;
 }
 
 int main(int ac, char *av[]) {
@@ -71,6 +78,8 @@ int main(int ac, char *av[]) {
     }
 
     signal(SIGCHLD, sigchld_handler);
+    signal(SIGTERM, kill_handler);
+    signal(SIGINT, kill_handler);
 
     pid = fork();
     if (pid < 0) {
@@ -122,7 +131,7 @@ void ping(struct in_addr *hosts, int raw)
     /* Send one echo to every host every 10s, forever. */
 
     seq = 0;
-    while (!child_died) {
+    while (!child_died && !killed) {
         int i = 0;
 
         icp->icmp_seq = htons(seq++);
@@ -142,6 +151,10 @@ void ping(struct in_addr *hosts, int raw)
 
         sleep(10);
     }
+
+    if (killed) {
+        kill(pid, SIGTERM);
+    }
 }
 
 void pong(int raw)
@@ -151,7 +164,7 @@ void pong(int raw)
     socklen_t fromlen = sizeof(from);
 
     pid = getpid();
-    while (1) {
+    while (!killed) {
         int n = recvfrom(raw, pkt, sizeof(pkt), 0,
                          (struct sockaddr *)&from, &fromlen);
         if (n > 0)
