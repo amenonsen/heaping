@@ -10,9 +10,6 @@
  * There is no warranty.
  */
 
-#define _BSD_SOURCE
-#define _POSIX_SOURCE
-
 #include <errno.h>
 #include <unistd.h>
 #include <sys/time.h>
