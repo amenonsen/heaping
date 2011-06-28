@@ -131,7 +131,10 @@ void ping(struct in_addr *hosts, int raw)
     while (!child_died && !killed) {
         int i = 0;
 
-        icp->icmp_seq = htons(seq++);
+        icp->icmp_seq = htons(seq);
+        printf("meta: new cycle (seq=%d)\n", seq);
+        seq++;
+
         while (hosts[i].s_addr != INADDR_NONE) {
             int n;
 
