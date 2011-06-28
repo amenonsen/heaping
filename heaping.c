@@ -25,13 +25,13 @@
 #include <stdio.h>
 
 static pid_t pid;
-static int child_died;
 static int killed;
+static int child_died;
 
+void pong(int);
+void ping(struct in_addr *, int);
 uint16_t icmp_checksum(uint16_t *, int);
 void describe(unsigned char *, int, struct sockaddr_in *);
-void ping(struct in_addr *, int);
-void pong(int);
 
 void sigchld_handler(int sig)
 {
@@ -141,10 +141,12 @@ void ping(struct in_addr *hosts, int raw)
             gettimeofday(tp, &tz);
             icp->icmp_cksum = icmp_checksum((uint16_t *)pkt, sz);
 
-            /* What should we do about errors? */
             to.sin_addr.s_addr = hosts[i].s_addr;
             n = sendto(raw, pkt, sz, 0, (struct sockaddr *)&to,
                        sizeof(struct sockaddr));
+            if (n < 0) {
+                perror("sendto");
+            }
 
             i++;
         }
@@ -167,8 +169,12 @@ void pong(int raw)
     while (!killed) {
         int n = recvfrom(raw, pkt, sizeof(pkt), 0,
                          (struct sockaddr *)&from, &fromlen);
-        if (n > 0)
+        if (n < 0) {
+            perror("recvfrom");
+        }
+        else if (n > 0) {
             describe(pkt, n, &from);
+        }
     }
 }
 
