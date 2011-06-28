@@ -1,0 +1,12 @@
+heaping
+
+This program takes a list of IP addresses on the command line and sends
+an ICMP echo request to each one every 10 seconds. For each response, it
+prints the response time in ms (or "unreachable"). It does nothing else.
+
+It was written to monitor the reachability of a large number of hosts
+in conjunction with rrdtool or something similar.
+
+--
+Abhijit Menon-Sen <ams@toroid.org>
+http://github.com/amenonsen/heaping
