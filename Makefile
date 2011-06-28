@@ -7,3 +7,6 @@
 CFLAGS = -D_BSD_SOURCE -D_XOPEN_SOURCE -Wall -ansi -pedantic
 
 heaping: heaping.c
+
+clean:
+	rm heaping
