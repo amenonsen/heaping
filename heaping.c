@@ -77,6 +77,9 @@ int main(int ac, char *av[]) {
         exit(-1);
     }
 
+    setlinebuf(stdout);
+    setlinebuf(stderr);
+
     signal(SIGCHLD, sigchld_handler);
     signal(SIGTERM, kill_handler);
     signal(SIGINT, kill_handler);
