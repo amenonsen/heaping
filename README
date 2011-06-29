@@ -7,6 +7,11 @@ prints the response time in ms (or "unreachable"). It does nothing else.
 It was written to monitor the reachability of a large number of hosts
 in conjunction with rrdtool or something similar.
 
+It has been tested on Linux (by me), FreeBSD, and OS X (by other people)
+so far. It may or may not work elsewhere.
+
+Feedback is welcome.
+
 --
 Abhijit Menon-Sen <ams@toroid.org>
 http://github.com/amenonsen/heaping
