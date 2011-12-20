@@ -31,7 +31,7 @@ static int killed;
 static int child_died;
 
 void pong(int);
-void ping(struct in_addr *, int);
+void ping(struct in_addr *, int, long);
 uint16_t icmp_checksum(uint16_t *, int);
 void describe(unsigned char *, int, struct sockaddr_in *);
 int ms_between(struct timeval *, struct timeval *);
@@ -47,29 +47,53 @@ void kill_handler(int sig)
 }
 
 int main(int ac, char *av[]) {
-    int n, raw;
+    int i, j, raw;
+    long int n = 0;
     struct in_addr * hosts;
 
-    if (ac < 2) {
-        fprintf(stderr, "Usage: heaping <ip> [ip ...]\n");
+    i = 1;
+
+    while (ac > i && *av[i] == '-') {
+        if (strcmp(av[i], "-n") == 0) {
+            char *end = 0;
+
+            i++;
+            n = strtol(av[i], &end, 10);
+            if (n <= 0 || *end != '\0') {
+                fprintf(
+                    stderr, "Couldn't parse '%s' as a positive number\n", av[i]
+                );
+                exit(-1);
+            }
+        }
+        else {
+            fprintf(stderr, "Unrecognised option: '%s'", av[i]);
+            exit(-1);
+        }
+
+        i++;
+    }
+
+    if (ac <= i) {
+        fprintf(stderr, "Usage: heaping [-n NNN] <ip> [ip ...]\n");
         exit(0);
     }
 
-    hosts = malloc(ac * sizeof(struct in_addr));
+    hosts = malloc((ac-i+1) * sizeof(struct in_addr));
     if (!hosts) {
         fprintf(stderr, "Couldn't malloc in_addr[%d]\n", ac);
         exit(-1);
     }
 
-    n = 1;
-    while (n < ac) {
-        if (inet_aton(av[n], hosts+n-1) == 0) {
-            fprintf(stderr, "Couldn't parse '%s' as IP address\n", av[n]);
+    j = 0;
+    while (i < ac) {
+        if (inet_aton(av[i], hosts+j) == 0) {
+            fprintf(stderr, "Couldn't parse '%s' as IP address\n", av[i]);
             exit(-1);
         }
-        n++;
+        i++; j++;
     }
-    hosts[ac-1].s_addr = INADDR_NONE;
+    hosts[j].s_addr = INADDR_NONE;
 
     raw = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (raw < 0) {
@@ -90,16 +114,16 @@ int main(int ac, char *av[]) {
         exit(-1);
     }
     else if (pid) {
-        ping(hosts, raw);
+        ping(hosts, raw, n);
     }
     else {
         pong(raw);
     }
 
-    return -1;
+    return 0;
 }
 
-void ping(struct in_addr *hosts, int raw)
+void ping(struct in_addr *hosts, int raw, long num)
 {
     /* We send echo requests with the 8-byte ICMP header and a 16-byte
      * (on x86_64) struct timeval. */
@@ -134,7 +158,7 @@ void ping(struct in_addr *hosts, int raw)
     /* Send one echo to every host every 10s, forever. */
 
     seq = 0;
-    while (!child_died && !killed) {
+    while (!child_died && !killed && (num == 0 || seq < num)) {
         int i = 0;
         struct timeval a, b;
 
@@ -167,7 +191,7 @@ void ping(struct in_addr *hosts, int raw)
         sleep(10);
     }
 
-    if (killed) {
+    if (!child_died) {
         kill(pid, SIGTERM);
     }
 }
