@@ -46,10 +46,12 @@ void kill_handler(int sig)
     killed = 1;
 }
 
-int main(int ac, char *av[]) {
+int main(int ac, char *av[])
+{
     int i, j, raw;
     long int n = 0;
     struct in_addr * hosts;
+    struct sigaction sa;
 
     i = 1;
 
@@ -104,9 +106,30 @@ int main(int ac, char *av[]) {
     setlinebuf(stdout);
     setlinebuf(stderr);
 
-    signal(SIGCHLD, sigchld_handler);
-    signal(SIGTERM, kill_handler);
-    signal(SIGINT, kill_handler);
+    sigemptyset(&sa.sa_mask);
+    sa.sa_handler = kill_handler;
+
+    /* We don't want our child process to restart syscalls when we're
+       trying to interrupt it. */
+
+    sa.sa_flags = SA_RESETHAND;
+    if (sigaction(SIGTERM, &sa, NULL) == -1 ||
+        sigaction(SIGINT, &sa, NULL) == -1)
+    {
+        perror("sigaction(SIGTERM/INT)");
+        exit(-1);
+    }
+
+    /* SIGCHLD doesn't need to interrupt any syscalls. */
+
+    sa.sa_flags = SA_RESTART;
+    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+        perror("sigaction(SIGCHLD)");
+        exit(-1);
+    }
+
+    /* Run ping in the parent (i.e. this) process, and receive results
+       in the child process. */
 
     pid = fork();
     if (pid < 0) {
@@ -196,6 +219,7 @@ void ping(struct in_addr *hosts, int raw, long num)
     }
 }
 
+
 void pong(int raw)
 {
     unsigned char pkt[64];
@@ -206,6 +230,9 @@ void pong(int raw)
     while (!killed) {
         int n = recvfrom(raw, pkt, sizeof(pkt), 0,
                          (struct sockaddr *)&from, &fromlen);
+        if (n < 0 && errno == EINTR) {
+            continue;
+        }
         if (n < 0) {
             perror("recvfrom");
         }
@@ -214,6 +241,7 @@ void pong(int raw)
         }
     }
 }
+
 
 void describe(unsigned char *pkt, int len, struct sockaddr_in *from)
 {
