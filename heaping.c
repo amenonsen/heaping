@@ -201,7 +201,7 @@ void ping(struct in_addr *hosts, int raw, long num)
             n = sendto(raw, pkt, sz, 0, (struct sockaddr *)&to,
                        sizeof(struct sockaddr));
             if (n < 0) {
-                perror("sendto");
+                printf("sendto(%s): %s\n", inet_ntoa(hosts[i]), strerror(errno));
             }
 
             i++;
