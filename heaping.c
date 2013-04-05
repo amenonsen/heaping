@@ -200,6 +200,12 @@ void ping(struct in_addr *hosts, int raw, long num)
             to.sin_addr.s_addr = hosts[i].s_addr;
             n = sendto(raw, pkt, sz, 0, (struct sockaddr *)&to,
                        sizeof(struct sockaddr));
+            if (n < 0 && errno == ENOBUFS) {
+                usleep(10000);
+                n = sendto(raw, pkt, sz, 0, (struct sockaddr *)&to,
+                           sizeof(struct sockaddr));
+
+            }
             if (n < 0) {
                 fprintf(stderr, "sendto(%s): %s\n", inet_ntoa(hosts[i]),
                         strerror(errno));
