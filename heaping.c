@@ -31,7 +31,7 @@ static int killed;
 static int child_died;
 
 void pong(int);
-void ping(struct in_addr *, int, long);
+void ping(struct in_addr *, int, long, int);
 uint16_t icmp_checksum(uint16_t *, int);
 void describe(unsigned char *, int, struct sockaddr_in *);
 int ms_between(struct timeval *, struct timeval *);
@@ -50,6 +50,7 @@ int main(int ac, char *av[])
 {
     int i, j, raw;
     long int n = 0;
+    int interval = 10;
     struct in_addr * hosts;
     struct sigaction sa;
 
@@ -68,6 +69,18 @@ int main(int ac, char *av[])
                 exit(-1);
             }
         }
+        else if (strcmp(av[i], "-i") == 0) {
+            char *end = 0;
+
+            i++;
+            interval = strtol(av[i], &end, 10);
+            if (interval <= 0 || *end != '\0') {
+                fprintf(
+                    stderr, "Couldn't parse '%s' as a positive number\n", av[i]
+                );
+                exit(-1);
+            }
+        }
         else {
             fprintf(stderr, "Unrecognised option: '%s'", av[i]);
             exit(-1);
@@ -77,7 +90,7 @@ int main(int ac, char *av[])
     }
 
     if (ac <= i) {
-        fprintf(stderr, "Usage: heaping [-n NNN] <ip> [ip ...]\n");
+        fprintf(stderr, "Usage: heaping [-n NNN] [-i NNN (seconds)] <ip> [ip ...]\n");
         exit(0);
     }
 
@@ -137,7 +150,7 @@ int main(int ac, char *av[])
         exit(-1);
     }
     else if (pid) {
-        ping(hosts, raw, n);
+        ping(hosts, raw, n, interval);
     }
     else {
         pong(raw);
@@ -146,7 +159,7 @@ int main(int ac, char *av[])
     return 0;
 }
 
-void ping(struct in_addr *hosts, int raw, long num)
+void ping(struct in_addr *hosts, int raw, long num, int interval)
 {
     /* We send echo requests with the 8-byte ICMP header and a 16-byte
      * (on x86_64) struct timeval. */
@@ -218,7 +231,7 @@ void ping(struct in_addr *hosts, int raw, long num)
 
         printf("meta: sent %d pings in %d ms\n", i, ms_between(&b, &a));
 
-        sleep(10);
+        sleep(interval);
     }
 
     if (!child_died) {
